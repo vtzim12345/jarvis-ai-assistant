@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;
+  font-family:'Rajdhani',sans-serif;color:#fff;user-select:none}
+
+/* ── CANVAS ── */
+#c{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1}
+
+/* ── CLAP UI ── */
+#clap-ui{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  z-index:10;text-align:center;
+  transition:opacity .6s,visibility .6s;
+}
+#clap-ui.hidden{opacity:0;visibility:hidden;pointer-events:none}
+
+#clap-rings{width:180px;height:180px;position:relative;margin:0 auto 18px}
+.ring{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.12);
+  top:50%;left:50%;transform:translate(-50%,-50%)}
+.ring:nth-child(1){width:56px;height:56px}
+.ring:nth-child(2){width:100px;height:100px}
+.ring:nth-child(3){width:145px;height:145px}
+.ring:nth-child(4){width:175px;height:175px;border-color:rgba(255,255,255,.05)}
+.ring.pulse{animation:rpulse .4s ease-out forwards}
+@keyframes rpulse{
+  0%{transform:translate(-50%,-50%) scale(1);border-color:rgba(255,255,255,.9)}
+  100%{transform:translate(-50%,-50%) scale(1.35);border-color:rgba(255,255,255,0)}
+}
+#clap-icon{font-size:32px;position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);opacity:.55}
+#clap-label{font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:4px;color:rgba(255,255,255,.35);text-transform:uppercase}
+#clap-dots{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.cdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);
+  transition:background .2s,transform .2s}
+.cdot.on{background:#fff;transform:scale(1.3)}
+
+/* ── STATUS ── */
+#status{
+  position:fixed;top:28px;left:50%;transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:5px;color:rgba(255,255,255,.22);
+  text-transform:uppercase;z-index:20;transition:color .4s
+}
+
+/* ── TEXTO JARVIS ── */
+#text-wrap{
+  position:fixed;bottom:118px;left:50%;transform:translateX(-50%);
+  width:620px;max-width:90vw;text-align:center;z-index:20;min-height:64px
+}
+#jtext{
+  font-family:'Share Tech Mono',monospace;font-size:13px;
+  color:rgba(255,255,255,.88);letter-spacing:1px;line-height:1.75;display:none
+}
+.cursor::after{content:'█';animation:blink .7s infinite;opacity:.55}
+@keyframes blink{0%,100%{opacity:.55}50%{opacity:0}}
+
+/* ── CAMPO TEXTO ── */
+#input-row{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  width:520px;max-width:88vw;z-index:20;
+  display:flex;gap:8px;opacity:0;pointer-events:none;transition:opacity .4s
+}
+#input-row.show{opacity:1;pointer-events:all}
+#tinput{
+  flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;color:#fff;padding:9px 18px;
+  font-family:'Share Tech Mono',monospace;font-size:12px;outline:none
+}
+#tinput::placeholder{color:rgba(255,255,255,.2)}
+#tsend{
+  width:37px;height:37px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.15);border-radius:50%;color:#fff;
+  cursor:pointer;font-size:15px;display:flex;align-items:center;
+  justify-content:center;transition:background .2s
+}
+#tsend:hover{background:rgba(255,255,255,.15)}
+
+/* ── TEXTO MUDO ── */
+#mute-wrap{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,calc(-50% + 130px));
+  width:560px;max-width:90vw;text-align:center;z-index:20;display:none
+}
+#mtext{font-family:'Share Tech Mono',monospace;font-size:12px;
+  color:rgba(255,255,255,.75);letter-spacing:1px;line-height:1.65}
+
+/* ── CÂMERA ── */
+#cam-view{
+  position:fixed;top:18px;right:18px;width:210px;height:158px;
+  border:1px solid rgba(255,255,255,.1);border-radius:4px;overflow:hidden;
+  display:none;background:#000;z-index:50
+}
+#cam-view.show{display:block}
+#cam-img{width:100%;height:100%;object-fit:cover;opacity:.92}
+
+/* ── BOTTOM BAR ── */
+#bar{
+  position:fixed;bottom:34px;left:50%;transform:translateX(-50%);
+  display:flex;gap:26px;align-items:center;z-index:20
+}
+.btn{
+  width:40px;height:40px;border:1px solid rgba(255,255,255,.12);
+  border-radius:50%;background:rgba(0,0,0,.55);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .22s;color:rgba(255,255,255,.4);font-size:15px;
+  backdrop-filter:blur(6px)
+}
+.btn:hover{border-color:rgba(255,255,255,.4);color:#fff;
+  background:rgba(255,255,255,.05)}
+.btn.on{border-color:#fff;color:#fff;background:rgba(255,255,255,.1)}
+.btn.muted{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.25)}
+#btn-mic{width:52px;height:52px;font-size:20px}
+#btn-stop{border-color:rgba(255,80,80,.4);color:rgba(255,80,80,.6)}
+#btn-stop:hover{border-color:rgba(255,80,80,.9);color:rgba(255,100,100,1);
+  background:rgba(255,40,40,.08)}
+
+/* ── CONFIG PANEL ── */
+#cfg{
+  position:fixed;top:0;right:0;width:370px;height:100vh;
+  background:rgba(6,6,6,.97);border-left:1px solid rgba(255,255,255,.07);
+  z-index:100;padding:38px 26px;overflow-y:auto;
+  transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);
+  backdrop-filter:blur(20px)
+}
+#cfg.open{transform:translateX(0)}
+#cfg h2{font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:5px;color:rgba(255,255,255,.28);text-transform:uppercase;margin-bottom:30px}
+.cfgs{margin-bottom:20px}
+.cfgl{font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:3px;color:rgba(255,255,255,.32);text-transform:uppercase;margin-bottom:7px}
+.cfgi{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  border-radius:4px;color:#fff;padding:9px 12px;
+  font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;transition:border-color .2s}
+.cfgi:focus{border-color:rgba(255,255,255,.3)}
+.cfgi::placeholder{color:rgba(255,255,255,.18)}
+.cfgbtn{width:100%;margin-top:26px;padding:11px;background:transparent;
+  border:1px solid rgba(255,255,255,.22);color:#fff;
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:4px;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;border-radius:4px}
+.cfgbtn:hover{background:rgba(255,255,255,.06)}
+.cfgdiv{border-top:1px solid rgba(255,255,255,.06);margin:20px 0}
+.cfgtitle{font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:3px;color:rgba(255,255,255,.2);text-transform:uppercase;
+  margin-bottom:12px;margin-top:20px}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- Clap UI -->
+<div id="clap-ui">
+  <div id="clap-rings">
+    <div class="ring"></div><div class="ring"></div>
+    <div class="ring"></div><div class="ring"></div>
+    <span id="clap-icon">👋</span>
+  </div>
+  <div id="clap-label">Dê 2 palmas para iniciar</div>
+  <div id="clap-dots">
+    <div class="cdot" id="d1"></div>
+    <div class="cdot" id="d2"></div>
+  </div>
+</div>
+
+<!-- Status -->
+<div id="status">JARVIS · AGUARDANDO</div>
+
+<!-- Saída de voz -->
+<div id="text-wrap"><div id="jtext"></div></div>
+
+<!-- Saída modo mudo -->
+<div id="mute-wrap"><div id="mtext"></div></div>
+
+<!-- Campo de texto -->
+<div id="input-row">
+  <input id="tinput" type="text" placeholder="Digite um comando..." autocomplete="off">
+  <button id="tsend">↑</button>
+</div>
+
+<!-- Câmera -->
+<div id="cam-view"><img id="cam-img" src="" alt=""></div>
+
+<!-- Barra de botões -->
+<div id="bar">
+  <button class="btn" id="btn-mute"  title="Mudo">🔇</button>
+  <button class="btn" id="btn-stop"  title="Interromper">⏹</button>
+  <button class="btn" id="btn-mic"   title="Falar">🎤</button>
+  <button class="btn" id="btn-eye"   title="Visão">👁</button>
+  <button class="btn" id="btn-cfg"   title="Config">⚙</button>
+</div>
+
+<!-- Config -->
+<div id="cfg">
+  <h2>JARVIS · Configurações</h2>
+
+  <div class="cfgs">
+    <div class="cfgl">OpenAI API Key</div>
+    <input class="cfgi" id="c-oai" type="password" placeholder="sk-...">
+  </div>
+  <div class="cfgs">
+    <div class="cfgl">Groq API Key</div>
+    <input class="cfgi" id="c-grq" type="password" placeholder="gsk_...">
+  </div>
+  <div class="cfgdiv"></div>
+  <div class="cfgs">
+    <div class="cfgl">Wake Word</div>
+    <input class="cfgi" id="c-wake" type="text" placeholder="jarvis">
+  </div>
+  <div class="cfgs">
+    <div class="cfgl">Seu Nome</div>
+    <input class="cfgi" id="c-owner" type="text" placeholder="Senhor Victor">
+  </div>
+  <div class="cfgs">
+    <div class="cfgl">Cidade (clima)</div>
+    <input class="cfgi" id="c-city" type="text" placeholder="Piracicaba">
+  </div>
+  <div class="cfgdiv"></div>
+  <div class="cfgtitle">Música de Inicialização</div>
+  <div class="cfgs">
+    <select class="cfgi" id="c-music">
+      <option value="random">🎲 Aleatória</option>
+      <option value="thunderstruck">⚡ Thunderstruck — AC/DC</option>
+      <option value="back_in_black">🎸 Back in Black — AC/DC</option>
+      <option value="should_i_stay">🎵 Should I Stay or Should I Go</option>
+      <option value="highway_to_hell">🔥 Highway to Hell</option>
+      <option value="iron_man">🦾 Iron Man — Black Sabbath</option>
+      <option value="shoot_to_thrill">🎯 Shoot to Thrill</option>
+      <option value="hells_bells">🔔 Hells Bells</option>
+    </select>
+  </div>
+  <div class="cfgdiv"></div>
+  <div class="cfgs">
+    <div class="cfgl">Home Assistant URL</div>
+    <input class="cfgi" id="c-ha-url" type="text" placeholder="http://homeassistant.local:8123">
+  </div>
+  <div class="cfgs">
+    <div class="cfgl">Home Assistant Token</div>
+    <input class="cfgi" id="c-ha-tok" type="password" placeholder="eyJ...">
+  </div>
+
+  <button class="cfgbtn" onclick="saveCfg()">SALVAR</button>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+// ══════════════════════════════════════════════
+// ORBE 3D DE PARTÍCULAS
+// ══════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W = 0, H = 0, time = 0;
+let orbState = 'idle';
+const mouse = {x: 0, y: 0};
+
+const R   = 115;
+const N   = 2000;
+
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+class P {
+  constructor(){
+    this.reset();
+    this.phi   = Math.random() * Math.PI * 2;
+    this.theta = Math.random() * Math.PI * 2;
+  }
+  reset(){
+    this.phi      = Math.acos(2*Math.random()-1);
+    this.theta    = Math.random()*Math.PI*2;
+    this.r        = R + (Math.random()-.5)*10;
+    this.spd_phi  = (Math.random()-.5)*.007;
+    this.spd_tht  = (Math.random()-.5)*.007;
+    this.sz       = Math.random()*1.5+.25;
+    this.op       = Math.random()*.7+.2;
+    this.poff     = Math.random()*Math.PI*2;
+  }
+  update(t){
+    let amp=3, chaos=0, expand=0;
+    if(orbState==='listening') { amp=12; this.spd_phi*=1.01; this.spd_tht*=1.01; }
+    else if(orbState==='speaking') { amp=20; chaos=.005; }
+    else if(orbState==='thinking') { amp=7; }
+    else if(orbState==='initializing') { amp=28; chaos=.012; expand=18; }
+    else { this.spd_phi=this.spd_phi*.999+(Math.random()-.5)*.0001;
+           this.spd_tht=this.spd_tht*.999+(Math.random()-.5)*.0001; }
+    this.phi   += this.spd_phi + (Math.random()-.5)*chaos;
+    this.theta += this.spd_tht + (Math.random()-.5)*chaos;
+    const pulse = Math.sin(t*2+this.poff)*amp;
+    this.cr = R + expand + pulse;
+  }
+  proj(){
+    const x = this.cr*Math.sin(this.phi)*Math.cos(this.theta);
+    const y = this.cr*Math.sin(this.phi)*Math.sin(this.theta);
+    const z = this.cr*Math.cos(this.phi);
+    const mx = (mouse.x/W-.5)*.45, my = (mouse.y/H-.5)*.45;
+    const x1 = x*Math.cos(mx)-z*Math.sin(mx);
+    const z1 = x*Math.sin(mx)+z*Math.cos(mx);
+    const y2 = y*Math.cos(my)-z1*Math.sin(my);
+    const z2 = y*Math.sin(my)+z1*Math.cos(my);
+    const fov = 420, sc = fov/(fov+z2);
+    return {px:x1*sc, py:y2*sc,
+            d:(z2+R*2)/(R*4), sc};
+  }
+}
+
+const parts = Array.from({length:N}, ()=>new P());
+
+function glow(cx,cy){
+  let r1='rgba(255,255,255,.12)',r2='rgba(255,255,255,0)',rad=R*2;
+  if(orbState==='speaking'){r1='rgba(255,255,255,.16)';rad=R*2.5}
+  else if(orbState==='listening'){r1='rgba(255,255,255,.12)';rad=R*2.2}
+  else if(orbState==='initializing'){r1='rgba(255,255,255,.2)';rad=R*3}
+  else{r1='rgba(255,255,255,.05)';rad=R*1.5}
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+  g.addColorStop(0,r1); g.addColorStop(1,r2);
+  ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  time+=.016;
+  const cx=W/2, cy=H/2;
+  glow(cx,cy);
+
+  const proj=parts.map(p=>{
+    p.update(time);
+    const {px,py,d,sc}=p.proj();
+    return {x:cx+px,y:cy+py,d,sz:p.sz*sc,op:p.op*Math.min(1,d*2)};
+  }).sort((a,b)=>a.d-b.d);
+
+  for(const p of proj){
+    if(p.d<.01) continue;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,Math.max(.3,p.sz),0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${Math.min(p.op,1).toFixed(3)})`;
+    ctx.fill();
+  }
+
+  if(orbState==='speaking'){
+    const t2=time*6;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R+28+Math.sin(t2)*14,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,255,255,${(.06+Math.sin(t2)*.04).toFixed(3)})`;
+    ctx.lineWidth=1; ctx.stroke();
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+
+// ══════════════════════════════════════════════
+// SOCKET.IO
+// ══════════════════════════════════════════════
+const B  = 'http://localhost:5000';
+let sock = null;
+
+function connectSocket(){
+  try{
+    sock = io(B, {transports:['websocket','polling'], timeout:5000});
+    sock.on('connect', ()=>{ console.log('[JARVIS] Socket conectado'); });
+    sock.on('disconnect', ()=>{ console.log('[JARVIS] Socket desconectado'); });
+
+    sock.on('jarvis_state',   d=>setOrb(d.state));
+    sock.on('jarvis_text',    d=>showText(d.text, d.type));
+    sock.on('jarvis_initialized', onInitialized);
+    sock.on('clap_detected',  d=>animClap(d.count));
+    sock.on('wake_word_detected', ()=>setOrb('listening'));
+    sock.on('camera_frame',   d=>{ document.getElementById('cam-img').src='data:image/jpeg;base64,'+d.frame; });
+    sock.on('jarvis_interrupted', ()=>{
+      // Apaga texto em andamento imediatamente
+      clearInterval(typeTimer);
+      const el=document.getElementById('jtext');
+      el.style.opacity=0;
+      setTimeout(()=>{el.textContent='';el.style.opacity=1;el.style.display='none';el.classList.remove('cursor');},300);
+      setOrb('idle');
+    });
+    sock.on('music_stopped',  ()=>updateStatus('JARVIS · ONLINE'));
+    sock.on('command_received',d=>{ /* opcional: mostrar no UI */ });
+  }catch(e){ console.warn('Socket falhou:', e); }
+}
+connectSocket();
+
+// ══════════════════════════════════════════════
+// ORB STATE
+// ══════════════════════════════════════════════
+const STATUS_MAP = {
+  idle:         'JARVIS · ONLINE',
+  listening:    'ESCUTANDO',
+  speaking:     'RESPONDENDO',
+  thinking:     'PROCESSANDO',
+  initializing: 'INICIALIZANDO',
+  waiting_clap: 'AGUARDANDO ATIVAÇÃO',
+};
+
+function setOrb(state){
+  orbState = state;
+  updateStatus(STATUS_MAP[state] || state.toUpperCase());
+}
+function updateStatus(t){ document.getElementById('status').textContent = t; }
+
+// ══════════════════════════════════════════════
+// INICIALIZADO — esconde UI de palmas
+// ══════════════════════════════════════════════
+function onInitialized(){
+  document.getElementById('clap-ui').classList.add('hidden');
+  document.getElementById('input-row').classList.add('show');
+  setOrb('idle');
+}
+
+// ══════════════════════════════════════════════
+// ANIMAÇÃO DE TEXTO
+// ══════════════════════════════════════════════
+let typeTimer = null;
+
+function showText(text, type){
+  if(type==='muted'){
+    const w = document.getElementById('mute-wrap');
+    const e = document.getElementById('mtext');
+    w.style.display='block';
+    e.textContent='';
+    typeStr(e, text, ()=>{
+      setTimeout(()=>{ w.style.opacity=0; w.style.transition='opacity 1s';
+        setTimeout(()=>{ w.style.display='none'; w.style.opacity=1; },1000); },6000);
+    });
+    return;
+  }
+  const el=document.getElementById('jtext');
+  el.style.display='block';
+  el.classList.remove('cursor');
+  clearInterval(typeTimer);
+  el.textContent='';
+
+  typeStr(el, text, ()=>{
+    el.classList.add('cursor');
+    setTimeout(()=>{
+      el.style.transition='opacity 1s';
+      el.style.opacity=0;
+      setTimeout(()=>{
+        el.textContent=''; el.style.opacity=1;
+        el.style.display='none';
+        el.classList.remove('cursor');
+      },1000);
+    }, Math.max(5000, text.length*80));
+  });
+}
+
+function typeStr(el, text, cb){
+  let i=0;
+  clearInterval(typeTimer);
+  typeTimer=setInterval(()=>{
+    if(i<text.length){ el.textContent+=text[i]; i++; }
+    else{ clearInterval(typeTimer); if(cb) cb(); }
+  }, 20);
+}
+
+// ══════════════════════════════════════════════
+// DETECÇÃO DE PALMAS NO FRONTEND (microfone browser)
+// ══════════════════════════════════════════════
+let clapN=0, clapLast=0;
+let audioCtx=null, analyser=null;
+
+async function startClapFrontend(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx  = new (window.AudioContext||window.webkitAudioContext)();
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    let lastPeak=0;
+
+    function tick(){
+      analyser.getByteFrequencyData(buf);
+      // Energia nas altas frequências (palma = percussão)
+      const highFreq = buf.slice(20,80);
+      const avg = highFreq.reduce((a,b)=>a+b,0)/highFreq.length;
+      const now = Date.now();
+
+      if(avg>75 && now-lastPeak>180){
+        lastPeak=now;
+        const gap=now-clapLast;
+        clapLast=now;
+        clapN = (gap>200 && gap<1400) ? clapN+1 : 1;
+        animClap(clapN);
+        if(clapN>=2){
+          clapN=0;
+          triggerInit();
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+    console.log('[JARVIS] Detecção de palmas frontend ativa');
+  }catch(e){
+    console.warn('[JARVIS] Microfone frontend não disponível:', e);
+  }
+}
+
+function animClap(n){
+  document.querySelectorAll('.ring').forEach(r=>{
+    r.classList.remove('pulse');
+    void r.offsetWidth;
+    r.classList.add('pulse');
+  });
+  document.getElementById('d1').classList.toggle('on', n>=1);
+  document.getElementById('d2').classList.toggle('on', n>=2);
+  if(n>=2) setTimeout(()=>{
+    document.getElementById('d1').classList.remove('on');
+    document.getElementById('d2').classList.remove('on');
+  },500);
+}
+
+function triggerInit(){
+  if(document.getElementById('clap-ui').classList.contains('hidden')) return;
+  // Esconde UI imediatamente para feedback visual
+  document.getElementById('clap-ui').classList.add('hidden');
+  document.getElementById('input-row').classList.add('show');
+  setOrb('initializing');
+  fetch(B+'/api/initialize',{method:'POST'}).catch(()=>{
+    setTimeout(()=>setOrb('idle'),3000);
+  });
+}
+
+// Inicia detecção de palmas automaticamente
+startClapFrontend();
+
+// ══════════════════════════════════════════════
+// BOTÕES
+// ══════════════════════════════════════════════
+let muted=false, camOn=false, cfgOpen=false;
+
+// STOP — interrompe fala imediatamente
+document.getElementById('btn-stop').addEventListener('click',()=>{
+  // Para animação de texto imediatamente
+  clearInterval(typeTimer);
+  const el=document.getElementById('jtext');
+  el.style.transition='opacity .2s';
+  el.style.opacity=0;
+  setTimeout(()=>{
+    el.textContent=''; el.style.opacity=1;
+    el.style.display='none';
+    el.classList.remove('cursor');
+  },200);
+  setOrb('idle');
+  fetch(B+'/api/interrupt',{method:'POST'}).catch(()=>{});
+});
+
+// MUDO
+document.getElementById('btn-mute').addEventListener('click',()=>{
+  muted=!muted;
+  const b=document.getElementById('btn-mute');
+  b.textContent=muted?'🔈':'🔇';
+  b.classList.toggle('muted',muted);
+  fetch(B+'/api/mute',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({muted})
+  }).catch(()=>{});
+});
+
+// MIC (escuta manual — além da wake word)
+document.getElementById('btn-mic').addEventListener('click',()=>{
+  const b=document.getElementById('btn-mic');
+  b.classList.add('on');
+  setOrb('listening');
+  fetch(B+'/api/listen',{method:'POST'})
+    .then(()=>b.classList.remove('on'))
+    .catch(()=>{ b.classList.remove('on'); setOrb('idle'); });
+});
+
+// VISÃO
+document.getElementById('btn-eye').addEventListener('click',()=>{
+  camOn=!camOn;
+  document.getElementById('btn-eye').classList.toggle('on',camOn);
+  document.getElementById('cam-view').classList.toggle('show',camOn);
+  const url=B+(camOn?'/api/vision/camera/start':'/api/vision/camera/stop');
+  fetch(url,{method:'POST'}).catch(()=>{});
+});
+
+// CONFIG
+document.getElementById('btn-cfg').addEventListener('click',()=>{
+  cfgOpen=!cfgOpen;
+  document.getElementById('cfg').classList.toggle('open',cfgOpen);
+  document.getElementById('btn-cfg').classList.toggle('on',cfgOpen);
+  if(cfgOpen) loadCfg();
+});
+
+// TEXTO SUBMIT
+document.getElementById('tsend').addEventListener('click',sendText);
+document.getElementById('tinput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') sendText();
+});
+
+function sendText(){
+  const el=document.getElementById('tinput');
+  const txt=el.value.trim();
+  if(!txt) return;
+  el.value='';
+  setOrb('thinking');
+  if(sock&&sock.connected){
+    sock.emit('command',{text:txt});
+  } else {
+    fetch(B+'/api/command',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:txt})
+    }).catch(()=>{});
+  }
+}
+
+// ══════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════
+function loadCfg(){
+  fetch(B+'/api/config')
+    .then(r=>r.json())
+    .then(cfg=>{
+      document.getElementById('c-wake').value  = cfg.wake_word||'jarvis';
+      document.getElementById('c-city').value  = cfg.city||'Piracicaba';
+      document.getElementById('c-owner').value = cfg.owner||'Senhor Victor';
+      const sel=document.getElementById('c-music');
+      sel.value = cfg.intro_music||'random';
+      document.getElementById('c-ha-url').value = cfg.home_assistant_url||'';
+    }).catch(()=>{});
+}
+
+function saveCfg(){
+  const data={
+    openai_api_key:       document.getElementById('c-oai').value,
+    groq_api_key:         document.getElementById('c-grq').value,
+    wake_word:            document.getElementById('c-wake').value||'jarvis',
+    city:                 document.getElementById('c-city').value||'Piracicaba',
+    owner:                document.getElementById('c-owner').value||'Senhor Victor',
+    intro_music:          document.getElementById('c-music').value,
+    home_assistant_url:   document.getElementById('c-ha-url').value,
+    home_assistant_token: document.getElementById('c-ha-tok').value,
+  };
+  fetch(B+'/api/config',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).then(()=>{
+    document.getElementById('cfg').classList.remove('open');
+    cfgOpen=false;
+    document.getElementById('btn-cfg').classList.remove('on');
+  }).catch(()=>alert('Backend não conectado. Edite config.json manualmente.'));
+}
+</script>
+</body>
+</html>
