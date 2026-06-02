@@ -17,12 +17,6 @@
 
 ---
 
-## 🎬 Demonstração
-
-<img src="./demo.gif" width="800">
-
----
-
 ## ⚡ Sobre o projeto
 
 O **J.A.R.V.I.S** é um assistente pessoal de inteligência artificial que roda localmente no seu computador.
